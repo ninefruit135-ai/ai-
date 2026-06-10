@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ai prompt</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入 Phosphor Icons (圖示) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #111827; /* 深色背景 */
+            color: #f3f4f6;
+        }
+
+        /* 自訂捲軸樣式 (深色版) */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #374151;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* 確保卡片內的文字保留換行符號 */
+        .whitespace-pre-wrap {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-12">
+
+    <!-- Header 區塊 -->
+    <header class="pt-12 pb-8 flex flex-col items-center px-4">
+        <h1 class="text-3xl font-bold mb-3 flex items-center gap-2 text-white">
+            ai prompt
+        </h1>
+        
+        <!-- 連結到原始資料 -->
+        <a href="https://docs.google.com/document/d/1S8K22lzOIS2JTInVWXswGPOWyQbJauTk9TuJKCyt6rk/edit?usp=sharing" target="_blank" 
+           class="text-sm text-gray-400 hover:text-gray-200 flex items-center gap-1 transition-colors mb-8 bg-gray-800/50 px-3 py-1.5 rounded-md">
+            <i class="ph ph-folder-open text-lg"></i> 開啟原始資料 Google Sheet
+        </a>
+
+        <!-- 搜尋列 -->
+        <div class="relative w-full max-w-2xl mb-8 shadow-sm rounded-full">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="ph ph-magnifying-glass text-gray-400 text-xl"></i>
+            </div>
+            <input type="text" id="searchInput" placeholder="搜尋提示詞..." 
+                   class="block w-full pl-11 pr-4 py-3 border-none rounded-full bg-gray-800 text-gray-100 ring-1 ring-gray-700 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 sm:text-sm focus:outline-none shadow-md shadow-gray-900/50">
+        </div>
+
+        <!-- 分類標籤 (Filter Tags) -->
+        <div class="flex flex-wrap justify-center gap-2 max-w-4xl" id="filterContainer">
+            <!-- 標籤將透過 JS 動態生成 -->
+        </div>
+    </header>
+
+    <!-- Main Content 區塊 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-100">
+            🧠 AI 協思
+        </h2>
+
+        <!-- 卡片網格 -->
+        <div id="cardContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- 卡片將透過 JS 動態生成 -->
+        </div>
+        
+        <!-- 找不到結果時的提示 -->
+        <div id="noResults" class="hidden text-center py-12 text-gray-400">
+            找不到符合條件的提示詞。
+        </div>
+    </main>
+
+    <script>
+        // --- 1. 資料區 (Mock Data 根據截圖內容還原) ---
+        const promptsData = [
+            {
+                id: 1,
+                category: "內容創作",
+                title: "意義單詞",
+                content: "將文章的重點部分，尋找一個代表性英文字母，並使這些字母的首字組合成一個具有意義的單詞（如「VISION」）"
+            },
+            {
+                id: 2,
+                category: "內容創作",
+                title: "品牌名稱",
+                content: "完成 ChatGPT 角色定義後，依據「品牌定義」與「產品介紹」發想5個產品名稱與標語（口號）。\n\n- 提示詞指令：描述品牌與產品，請列出 數字 個產品名稱與行銷標題建議。(*品牌定義*描述、*產品介紹*描述)\n\n- Prompt:\n我推出一個運動鞋品牌，今年會銷售一款新型跑步..."
+            },
+            {
+                id: 3,
+                category: "筆記精煉",
+                title: "長編文章",
+                content: "為這一篇長篇文章，進行以下四個步驟，每一個步驟都提供給文章與標示出來\n\n第1、請為這篇長文件生成一份簡短摘要。\n第2、請基於上一個摘要，不要遺漏任何專有名詞、數字或關鍵人物，重新生成一份摘要。\n第3、現在，請將摘要中每一句話都濃縮成更簡潔的表達，同時保留..."
+            },
+            {
+                id: 4,
+                category: "筆記精煉",
+                title: "書籍精煉",
+                content: "請對 @[檔名]\n啟動【終極煉金管線】, 一次執行四步驟整合：\n\n第一步：全域架構導航 (Stage 01)\n執行 stage-1-navigator，對精煉稿進行深度掃描，產出知識地圖與反直覺預警。\n存檔：01_Map_[主題簡稱].md。\n\n第二步：價值 DNA 診斷 (Stage 02)..."
+            },
+            {
+                id: 5,
+                category: "筆記精煉",
+                title: "書籍精煉",
+                content: "(此為測試版位，與上方類似。您可以透過 Google Sheet 隨時更新這些資料。)\n請協助我將以下長篇文字進行概念萃取，提取出最核心的三個觀點..."
+            },
+            {
+                id: 6,
+                category: "筆記精煉",
+                title: "提取練習",
+                content: "我剛讀完了關於 [填入具體段落標題] 的內容。現在請幫我進行深度研磨：\n\n1-底層邏輯拷問：針對這段內容的「運作原理」向我提問，測試我是否理解了「為什麼有效」，而非只是記住步驟。\n\n2-邊緣弱化：如果這段概念有複雜..."
+            },
+            {
+                id: 7,
+                category: "內容創作",
+                title: "影片清理",
+                content: "你的角色是一位「逐字稿校對員」，不是編輯。\n任務：\n1-僅刪除口語填充詞、重複說法、明顯冗詞\n2-不得改寫句型、不得改變原意、不得加入新解釋\n規則：\n1-原句順序必須完全一致\n2-若刪除任何詞語，需確保刪前與..."
+            },
+            {
+                id: 8,
+                category: "內容創作",
+                title: "影片清理",
+                content: "你的角色是一位「內容結構化整理員」，不是編輯、不是評論者。\n\n我會提供一段約 4000 字的影片文字內容，請你在完全保留原作者語意與立場的前提下，\n進行「保留語意的濃縮」，將內容壓縮至 約 2000 字。全文用繁體中文呈現。"
+            }
+        ];
+
+        /* =====================================================================
+        💡 如果未來您有發佈好的 Google Sheet (CSV 格式)，可以使用以下函式替換上方資料：
+        
+        async function fetchFromGoogleSheet() {
+            const csvUrl = '您的_GOOGLE_SHEET_CSV_連結';
+            try {
+                const response = await fetch(csvUrl);
+                const csvText = await response.text();
+                // 這裡需要加入 CSV 解析邏輯 (例如將 csvText 轉為 promptsData 陣列格式)
+                // 轉換後呼叫 renderCards(promptsData);
+            } catch (error) {
+                console.error('無法讀取試算表', error);
+            }
+        }
+        =====================================================================
+        */
+
+        // 定義所有過濾標籤 (與截圖一致)
+        const categories = ["全部", "內容創作", "筆記精煉", "程式應用", "簡報表達", "程式生成", "文本優化", "生文校正", "專案企劃", "圖片生成", "筆記整理", "資訊整理", "心智圖法"];
+        
+        let currentFilter = "全部";
+        let searchQuery = "";
+
+        // DOM 元素
+        const filterContainer = document.getElementById('filterContainer');
+        const cardContainer = document.getElementById('cardContainer');
+        const searchInput = document.getElementById('searchInput');
+        const noResults = document.getElementById('noResults');
+
+        // --- 2. 初始化與渲染 ---
+
+        function init() {
+            renderFilters();
+            renderCards();
+
+            // 綁定搜尋事件
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                renderCards();
+            });
+        }
+
+        // 渲染分類標籤
+        function renderFilters() {
+            filterContainer.innerHTML = '';
+            categories.forEach(category => {
+                const btn = document.createElement('button');
+                btn.innerText = category;
+                // 基本樣式
+                btn.className = "px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 border";
+                
+                // 判斷是否為作用中 (Active) 的狀態 - 深色版配色
+                if (currentFilter === category) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-sm');
+                } else {
+                    btn.classList.add('bg-gray-800', 'text-gray-300', 'border-gray-700', 'hover:bg-gray-700');
+                }
+
+                btn.onclick = () => {
+                    currentFilter = category;
+                    renderFilters(); // 重新渲染以更新 active 樣式
+                    renderCards();   // 根據新標籤重新過濾卡片
+                };
+
+                filterContainer.appendChild(btn);
+            });
+        }
+
+        // 渲染卡片
+        function renderCards() {
+            cardContainer.innerHTML = '';
+            
+            // 進行資料過濾 (分類 + 關鍵字)
+            const filteredData = promptsData.filter(item => {
+                const matchCategory = currentFilter === "全部" || item.category === currentFilter;
+                const matchSearch = item.title.toLowerCase().includes(searchQuery) || 
+                                    item.content.toLowerCase().includes(searchQuery);
+                return matchCategory && matchSearch;
+            });
+
+            if (filteredData.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            filteredData.forEach(item => {
+                // 建立卡片外層 - 深色版
+                const card = document.createElement('div');
+                card.className = "bg-gray-800 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.5)] border-t-[5px] border-purple-500 flex flex-col p-5 h-[380px] transition-transform hover:-translate-y-1";
+
+                // 卡片內容結構 - 深色版
+                card.innerHTML = `
+                    <div class="mb-3">
+                        <span class="inline-block bg-blue-900/50 text-blue-300 text-[11px] font-bold px-2 py-1 rounded-md tracking-wider">
+                            ${item.category}
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-100 mb-3">${item.title}</h3>
+                    
+                    <div class="flex-grow bg-gray-900 rounded-lg p-4 text-[14px] text-gray-300 overflow-y-auto mb-4 custom-scrollbar whitespace-pre-wrap leading-relaxed border border-gray-700">${item.content}</div>
+                    
+                    <button onclick="copyPrompt(this, \`${item.content.replace(/`/g, '\\`')}\`)" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm shadow-sm">
+                        複製 Prompt
+                    </button>
+                `;
+                cardContainer.appendChild(card);
+            });
+        }
+
+        // --- 3. 複製功能 ---
+        // 使用 document.execCommand 確保在所有環境 (包含 iframe) 都能正常運作
+        window.copyPrompt = function(btnElement, text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            // 防止 iOS 鍵盤彈出或畫面捲動
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // 給行動裝置的相容性
+
+            try {
+                document.execCommand('copy');
+                
+                // 視覺回饋 (按鈕變綠色)
+                const originalText = btnElement.innerHTML;
+                btnElement.innerHTML = `<i class="ph-fill ph-check-circle text-lg"></i> 已複製`;
+                btnElement.classList.replace('bg-[#0070f3]', 'bg-green-500');
+                btnElement.classList.replace('hover:bg-blue-600', 'hover:bg-green-600');
+                
+                // 2秒後恢復原狀
+                setTimeout(() => {
+                    btnElement.innerHTML = `複製 Prompt`;
+                    btnElement.classList.replace('bg-green-500', 'bg-[#0070f3]');
+                    btnElement.classList.replace('hover:bg-green-600', 'hover:bg-blue-600');
+                }, 2000);
+            } catch (err) {
+                console.error('複製失敗', err);
+                alert('複製失敗，請手動複製。');
+            }
+            
+            document.body.removeChild(textarea);
+        };
+
+        // 啟動應用程式
+        init();
+    </script>
+</body>
+</html>
